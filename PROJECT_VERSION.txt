@@ -1,0 +1,3 @@
+VoxFlow-Assistant Complete Fixed
+Fix included: single WebClient bean configuration.
+Do not copy .env files from this package; keep your existing local secrets.
