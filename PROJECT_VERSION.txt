@@ -1,3 +1,17 @@
-VoxFlow-Assistant Complete Fixed
-Fix included: single WebClient bean configuration.
-Do not copy .env files from this package; keep your existing local secrets.
+VoxFlow-Assistant — Fixed for local + deployment consistency
+
+Fixes in this pass:
+1. application.properties: spring.datasource.url/username/password reverted from
+   the unresolvable ${DATABASE_URL} (no default) back to ${DB_URL:...},
+   ${DB_USERNAME:postgres}, ${DB_PASSWORD:postgres} with safe local defaults.
+   This was why the backend failed to start locally at all.
+2. SecurityConfig.java: CORS allowed origins restored to read from
+   voxflow.frontend-origin (FRONTEND_ORIGIN env var), comma-separated,
+   defaulting to http://localhost:5173,http://127.0.0.1:5173 for local dev.
+   It had been hardcoded, which would have permanently blocked any deployed
+   frontend regardless of FRONTEND_ORIGIN being set on Render.
+3. Deleted config/CorsConfig.java — a duplicate WebMvcConfigurer-based CORS
+   registration that conflicts with SecurityConfig's CorsConfigurationSource.
+
+Do not copy .env files from this package; keep your existing local secrets,
+just make sure backend/.env uses DB_URL (not DATABASE_URL).
