@@ -49,7 +49,7 @@ If Render detects `render.yaml` at the repo root, it can create this service aut
 Environment variables to enter in the Render dashboard:
 
 ```text
-DB_URL=<your hosted PostgreSQL JDBC URL>
+DB_URL=jdbc:postgresql://<neon-host>/<db-name>?sslmode=require
 DB_USERNAME=<database user>
 DB_PASSWORD=<database password>
 JWT_SECRET=<long random secret>
@@ -57,9 +57,11 @@ ASSEMBLYAI_API_KEY=<secret>
 ELEVENLABS_API_KEY=<secret>
 ELEVENLABS_VOICE_ID=<voice id>
 GEMINI_API_KEY=<secret>
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 FRONTEND_ORIGIN=https://your-frontend.vercel.app
 ```
+
+`DB_URL` is accepted in either format: the clean JDBC form above (user and password in `DB_USERNAME` / `DB_PASSWORD`), or the `postgresql://user:password@host/db` string exactly as Neon displays it. Never put real values in `application.properties`; it only holds local defaults.
 
 The backend listens on `${PORT:8080}`, so Render can inject its port.
 
@@ -67,11 +69,11 @@ The backend listens on `${PORT:8080}`, so Render can inject its port.
 
 Use Neon or another managed PostgreSQL provider.
 
-Create a production database and use its JDBC connection values as Render environment variables.
+Create a production database. In the Neon console, copy the host and database name, then enter them in Render as described above. Neon's connection string starts with `postgresql://`, not `jdbc:postgresql://`.
 
-Do not commit production credentials.
+The schema is managed by Flyway migrations (`backend/src/main/resources/db/migration`) and Hibernate runs with `ddl-auto=validate`. Any schema change needs a new migration file (`V2__...sql`); never edit `V1`.
 
-Before public showcase, replace `ddl-auto=update` with versioned migrations.
+Do not commit production credentials. If a password ever appears in a log, a chat, or Git, rotate it in Neon immediately.
 
 ## 4. Frontend on Vercel
 
@@ -101,6 +103,8 @@ Environment variable (set in the Vercel dashboard, not in `frontend/.env`):
 VITE_API_BASE_URL=https://YOUR-RENDER-BACKEND.onrender.com/api
 ```
 
+Vite reads `VITE_*` variables at build time. After changing this value, trigger a new deployment in Vercel; a restart is not enough.
+
 Vercel supports Git-connected React deployments and automatic redeployment from repository changes.
 
 ## 5. CORS
@@ -111,7 +115,7 @@ Once the Vercel URL exists, set Render:
 FRONTEND_ORIGIN=https://YOUR-FRONTEND.vercel.app
 ```
 
-Redeploy backend.
+Use the exact origin, with no trailing slash. Multiple origins can be separated by commas. Redeploy the backend after changing it.
 
 ## 6. Deployment test
 
