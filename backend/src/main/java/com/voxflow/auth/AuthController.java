@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.web.bind.annotation.*;
 
+
 @RestController @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService auth;

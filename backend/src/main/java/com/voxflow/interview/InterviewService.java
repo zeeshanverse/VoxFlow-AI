@@ -4,6 +4,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.voxflow.common.CurrentUser;
+import com.voxflow.assistant.security.OperationCancellationService;
 import com.voxflow.llm.LlmProvider;
 import com.voxflow.voice.SpeechToTextProvider;
 import org.springframework.stereotype.Service;
@@ -19,32 +20,40 @@ public class InterviewService {
         "What is the difference between checked and unchecked exceptions?",
         "Explain the difference between JDBC, JPA and Spring Data JPA."
     );
-    private final InterviewSessionRepository sessions; private final CurrentUser current; private final SpeechToTextProvider stt; private final LlmProvider llm; private final ObjectMapper mapper=new ObjectMapper();
-    public InterviewService(InterviewSessionRepository sessions,CurrentUser current,SpeechToTextProvider stt,LlmProvider llm){
-        this.sessions=sessions;this.current=current;this.stt=stt;this.llm=llm;
+    private final InterviewSessionRepository sessions; private final CurrentUser current; private final SpeechToTextProvider stt; private final LlmProvider llm; private final ObjectMapper mapper=new ObjectMapper(); private final OperationCancellationService cancellations;
+    public InterviewService(InterviewSessionRepository sessions,CurrentUser current,SpeechToTextProvider stt,LlmProvider llm,OperationCancellationService cancellations){
+        this.sessions=sessions;this.current=current;this.stt=stt;this.llm=llm;this.cancellations=cancellations;
     }
 
-    public Start start(String topic){
-        var s=sessions.save(new InterviewSession(current.get(),topic==null||topic.isBlank()?"Java Backend":topic));
+    public Start start(String topic, String operationId){
+        var user=current.get();
+        cancellations.throwIfCancelled(user.getEmail(), operationId);
+        var s=sessions.save(new InterviewSession(user,topic==null||topic.isBlank()?"Java Backend":topic));
         return new Start(s.getId(),QUESTIONS.get(0),QUESTIONS.size());
     }
     @Transactional 
-    public AnswerResult answer(Long id, MultipartFile audio){
-        var s=sessions.findByIdAndUserId(id,current.get().getId()).orElseThrow();
+    public AnswerResult answer(Long id, MultipartFile audio, String operationId){
+        var user=current.get();
+        cancellations.throwIfCancelled(user.getEmail(), operationId);
+        var s=sessions.findByIdAndUserId(id,user.getId()).orElseThrow();
         if(s.isCompleted()) throw new IllegalStateException("Interview already completed");
         int index=s.getCurrentQuestion();
         if(index>=QUESTIONS.size()) throw new IllegalStateException("No question remaining");
-        String answer=stt.transcribe(audio);
+        String answer=stt.transcribe(audio).trim();
+        cancellations.throwIfCancelled(user.getEmail(), operationId);
+        if(answer.isBlank()) throw new IllegalArgumentException("No speech was detected in the answer");
         String question=QUESTIONS.get(index);
         String raw=llm.generate(
             "You are a strict but fair Java backend interviewer. Evaluate the candidate answer. Return JSON only with numeric score from 0 to 10 and concise feedback.",
-            "Question: "+question+"\\nCandidate answer: "+answer+
-            "\\nReturn exactly: {\"score\":7.5,\"feedback\":\"...\"}");
+            "Question: "+question+"\nCandidate answer: "+answer+
+            "\nReturn exactly: {\"score\":7.5,\"feedback\":\"...\"}");
+        cancellations.throwIfCancelled(user.getEmail(), operationId);
         double score=5; String feedback=raw;
         try{
             JsonNode n=mapper.readTree(extractJson(raw));
             score=n.path("score").asDouble(5); feedback=n.path("feedback").asText(raw);
         }catch(Exception ignored){}
+        cancellations.throwIfCancelled(user.getEmail(), operationId);
         s.addAnswer(new InterviewAnswer(question,answer,score,feedback)); s.incrementQuestion();
         boolean done=s.getCurrentQuestion()>=QUESTIONS.size();
         if(done){

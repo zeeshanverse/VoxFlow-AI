@@ -97,27 +97,19 @@ public class OpenAiLlmProvider implements LlmProvider {
 
         } catch (WebClientResponseException e) {
 
-            String body = e.getResponseBodyAsString();
-
             System.err.println(
                     "OpenAI HTTP " + e.getStatusCode().value()
-                            + ": " + body
             );
 
             throw new IllegalStateException(
                     "OpenAI request failed with HTTP "
                             + e.getStatusCode().value()
-                            + ": "
-                            + body
             );
 
         } catch (Exception e) {
 
-            e.printStackTrace();
-
             throw new IllegalStateException(
-                    "LLM request failed: " + e.getMessage(),
-                    e
+                    "LLM request failed"
             );
         }
     }
