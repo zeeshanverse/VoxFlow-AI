@@ -1,116 +1,137 @@
 # VoxFlow AI
 
-A full-stack voice AI assistant and Java interview platform.
+A full-stack voice AI assistant and Java interview practice platform. Speak to it, and it transcribes your voice, understands what you want, answers with an LLM, remembers the conversation, and talks back.
 
-## What it does
+**Live demo:** https://vox-flow-ai-sand.vercel.app
 
-VoxFlow connects a browser microphone to a Java/Spring Boot backend:
+> The backend runs on a free hosting tier and sleeps when idle. The first request after a quiet period can take 30–60 seconds while it wakes up.
+
+## Features
+
+- **Voice conversation loop:** record in the browser, transcribe, respond, and play the reply as speech
+- **Intent routing:** deterministic commands (start an interview, show history, current time) handled directly; everything else goes to the LLM
+- **Persistent conversations:** every message is stored per user and can be reopened later
+- **Java interview mode:** question-by-question sessions where you answer by voice, an LLM evaluates each answer, and you get a score and feedback
+- **Analytics:** summary of your interview performance
+- **JWT authentication** with BCrypt password hashing
+- **Rate limiting** per user (Bucket4j) and **cancellable operations** for long-running requests
+- **Swappable providers:** speech-to-text, text-to-speech and LLM sit behind interfaces
+- **Versioned database migrations** with Flyway
+
+## Architecture
 
 ```text
-React
-  -> MediaRecorder
-  -> Spring Boot
-  -> AssemblyAI STT
-  -> Assistant / Intent / LLM
-  -> PostgreSQL memory
-  -> ElevenLabs TTS
-  -> React audio playback
+React (Vite)
+   │  MediaRecorder -> audio upload
+   ▼
+Spring Boot REST API  ──►  AssemblyAI   (speech-to-text)
+   │                  ──►  Google Gemini (LLM)
+   │                  ──►  ElevenLabs    (text-to-speech)
+   ▼
+PostgreSQL (Neon in production)
 ```
 
-It also includes:
+Request flow for one voice turn:
 
-- JWT authentication
-- user profiles
-- persistent conversations and messages
-- LLM-backed assistant responses
-- deterministic command routing
-- Java interview sessions
-- spoken answer transcription
-- LLM-based answer evaluation
-- interview scoring and analytics
-- provider abstractions for STT/TTS/LLM
-- health endpoint
-- Docker deployment files
-- Render and Vercel deployment guidance
+1. The browser records audio and uploads it.
+2. The backend sends it to AssemblyAI and gets a transcript.
+3. `IntentRouter` decides between a built-in command and a general LLM query.
+4. The reply is saved to the conversation in PostgreSQL.
+5. ElevenLabs turns the reply into audio, and React plays it.
 
-## Stack
+Backend layers:
 
-Frontend: React + Vite  
-Backend: Java 21+ + Spring Boot + Spring Security + JPA  
-Database: PostgreSQL  
-STT: AssemblyAI  
-TTS: ElevenLabs  
-LLM: Google Gemini API (generateContent)  
-Deployment: Vercel + Render + PostgreSQL/Neon
+```text
+Controllers  ->  Services  ->  Provider interfaces  ->  JPA repositories / external APIs
+```
 
-## Local development
+| Provider interface | Implementation |
+|---|---|
+| `SpeechToTextProvider` | AssemblyAI |
+| `TextToSpeechProvider` | ElevenLabs |
+| `LlmProvider` | Google Gemini (an OpenAI provider is also included) |
 
-### 1. Prerequisites
+## Tech stack
 
-- JDK 21+ (your JDK 22 is supported)
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, Vite 7 |
+| Backend | Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, Flyway |
+| Database | PostgreSQL (Neon in production) |
+| Auth | JWT (jjwt), BCrypt |
+| AI services | AssemblyAI, Google Gemini, ElevenLabs |
+| Deployment | Vercel (frontend), Render with Docker (backend), Neon (database) |
+
+## Project structure
+
+```text
+VoxFlow-Assistant/
+├── backend/            Spring Boot application
+│   ├── src/main/java/com/voxflow/
+│   │   ├── assistant/      intent routing, rate limiting, cancellation
+│   │   ├── auth/           register and login
+│   │   ├── conversation/   conversations and messages
+│   │   ├── interview/      sessions, questions, evaluation
+│   │   ├── llm/            Gemini and OpenAI providers
+│   │   ├── voice/          AssemblyAI and ElevenLabs providers
+│   │   ├── security/       JWT filter and security config
+│   │   ├── config/         datasource and web client config
+│   │   └── ...
+│   ├── src/main/resources/db/migration/   Flyway migrations
+│   └── Dockerfile
+├── frontend/           React + Vite app
+├── docs/               API, architecture, setup, deployment notes
+└── render.yaml         Render service definition
+```
+
+## Running locally
+
+### Prerequisites
+
+- JDK 21+
 - Node.js 20+
 - PostgreSQL 15+
-- Git
-- Internet access for Maven/npm and external AI APIs
+- API keys for AssemblyAI, ElevenLabs and Google Gemini
 
-Maven is supplied through `mvnw.cmd`, so a global Maven installation is not required. On Windows, the wrapper also loads `backend/.env` for local `spring-boot:run`.
-
-### 2. Database
-
-Create:
+### 1. Create the database
 
 ```sql
 CREATE DATABASE voxflow;
 ```
 
-### 3. Backend configuration
+Flyway creates the tables automatically on first start.
 
-Copy:
+### 2. Configure the backend
 
-```text
-backend/.env.example -> backend/.env
-```
-
-Fill in real values inside `backend/.env` only — never edit `.env.example` with real secrets:
+Copy `backend/.env.example` to `backend/.env` and fill in your values:
 
 ```text
 DB_URL=jdbc:postgresql://localhost:5432/voxflow
 DB_USERNAME=postgres
 DB_PASSWORD=your_password
 
-JWT_SECRET=use_a_long_random_secret
+JWT_SECRET=a_random_secret_of_at_least_32_characters
+
 ASSEMBLYAI_API_KEY=...
 ELEVENLABS_API_KEY=...
 ELEVENLABS_VOICE_ID=...
 
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
+
+FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
 ```
 
-The backend reads environment variables through Spring placeholders.
-
-### 4. Start backend (Windows)
+### 3. Start the backend
 
 ```powershell
 cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Backend:
+The API runs at `http://localhost:8080`. Check `http://localhost:8080/api/health`.
 
-```text
-http://localhost:8080
-```
-
-Health:
-
-```text
-http://localhost:8080/api/health
-```
-
-### 5. Start frontend
-
-In another terminal:
+### 4. Start the frontend
 
 ```powershell
 cd frontend
@@ -119,69 +140,93 @@ npm install
 npm run dev
 ```
 
-Open:
+Open `http://localhost:5173` and allow microphone access when the browser asks.
 
-```text
-http://localhost:5173
+### 5. Run the tests
+
+```powershell
+cd backend
+.\mvnw.cmd clean test
 ```
 
-Allow microphone access when the browser asks.
+## Environment variables
 
-## Core loop
+### Backend
 
-1. Register/login.
-2. Press the microphone.
-3. Speak.
-4. Browser records audio.
-5. Spring Boot uploads it to AssemblyAI.
-6. Transcript is saved.
-7. Assistant routes the request and/or asks the LLM.
-8. Conversation is persisted.
-9. ElevenLabs generates audio.
-10. React plays the response.
+| Variable | Purpose |
+|---|---|
+| `DB_URL` | Database URL. Accepts `jdbc:postgresql://host/db` or a `postgresql://user:password@host/db` string as shown by Neon |
+| `DB_USERNAME`, `DB_PASSWORD` | Database credentials (not needed if they are inside `DB_URL`) |
+| `JWT_SECRET` | Signing key, at least 32 characters |
+| `ASSEMBLYAI_API_KEY` | Speech-to-text |
+| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Text-to-speech |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | LLM |
+| `FRONTEND_ORIGIN` | Allowed CORS origin(s), comma-separated, exact match with no trailing slash |
 
-## Main endpoints
+### Frontend
 
-```text
-POST /api/auth/register
-POST /api/auth/login
+| Variable | Purpose |
+|---|---|
+| `VITE_API_BASE_URL` | Backend base URL including `/api`, for example `https://your-backend.onrender.com/api` |
 
-POST /api/voice/transcribe
-POST /api/voice/speak
+`VITE_*` values are embedded in the browser bundle at build time, so never put secrets in them.
 
-POST /api/assistant/message
-GET  /api/conversations
-GET  /api/conversations/{id}
+## API overview
 
-POST /api/interviews
-POST /api/interviews/{id}/answer
-GET  /api/interviews/{id}
-GET  /api/analytics
+All endpoints except `auth` and `health` require an `Authorization: Bearer <token>` header.
 
-GET  /api/profile
-PUT  /api/profile
-GET  /api/health
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/register` | Create an account |
+| POST | `/api/auth/login` | Log in and receive a JWT |
+| POST | `/api/voice/transcribe` | Upload audio, get a transcript |
+| POST | `/api/voice/speak` | Convert text to speech (`audio/mpeg`) |
+| POST | `/api/assistant/message` | Send a message, get the routed intent and reply |
+| POST | `/api/operations/cancel` | Cancel an in-progress operation |
+| GET | `/api/conversations` | List conversations |
+| GET | `/api/conversations/{id}` | Get one conversation with messages |
+| POST | `/api/interviews` | Start an interview session |
+| POST | `/api/interviews/{id}/answer` | Submit an answer, get score and feedback |
+| GET | `/api/interviews/{id}` | Get a session result |
+| GET | `/api/analytics` | Interview analytics |
+| GET / PUT | `/api/profile` | Read or update the profile |
+| GET | `/api/health` | Health check (public) |
 
-## Security
-
-Never commit:
-
-```text
-backend/.env
-frontend/.env
-```
-
-`backend/.env.example` and `frontend/.env.example` are safe to commit — they contain no real values, only variable names, and exist so anyone setting up the project knows what to configure. Never put real secrets into an `.env.example` file.
-
-Never put AssemblyAI, ElevenLabs, Gemini, JWT, or database secrets in React source.
-
-For deployment, put secrets in the hosting provider's environment variables — never inside `render.yaml` itself, even though that file lists the variable names.
+More detail is in [`docs/API.md`](docs/API.md).
 
 ## Deployment
 
-See `docs/DEPLOYMENT.md`.
+| Part | Platform | Notes |
+|---|---|---|
+| Frontend | Vercel | Root directory `frontend`, build `npm run build`, output `dist` |
+| Backend | Render | Docker, root directory `backend`, health check `/api/health` |
+| Database | Neon | Set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` in Render |
 
-## Status
+Order of setup:
 
-This repository is intended as a private development project until the implementation is polished for public showcase.
+1. Deploy the backend and confirm `/api/health` returns `UP`.
+2. Set `VITE_API_BASE_URL` on Vercel and redeploy the frontend.
+3. Set `FRONTEND_ORIGIN` on Render to the exact Vercel URL.
+
+Full steps are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+## Security notes
+
+- Never commit `backend/.env` or `frontend/.env`. Only the `.env.example` files belong in Git.
+- Keep all API keys and database credentials in the hosting provider's environment variables, never in source code or `render.yaml`.
+- If a secret ever appears in a log, chat or commit, rotate it immediately.
+- Passwords are hashed with BCrypt, and sessions are stateless JWTs.
+
+## Roadmap
+
+- Streaming speech-to-text and text-to-speech
+- Tool / function calling
+- Retrieval-augmented answers (RAG)
+- Refresh-token rotation
+- Redis-backed caching and rate limiting
+- Structured logging, metrics and tracing
+- Async job processing
+
+## Author
+
+Built by [Mohammed Zeeshan](https://zeeshanverse.github.io/Portfolio-Zeeshan/).
