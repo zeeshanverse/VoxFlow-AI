@@ -51,6 +51,70 @@ Controllers  ->  Services  ->  Provider interfaces  ->  JPA repositories / exter
 | `TextToSpeechProvider` | ElevenLabs |
 | `LlmProvider` | Google Gemini (an OpenAI provider is also included) |
 
+## Database schema
+
+The schema is created by the Flyway migration `V1__initial_schema.sql`. There are five tables: conversations and interview sessions both belong to a user.
+
+```mermaid
+erDiagram
+    USERS ||--o{ CONVERSATION : owns
+    CONVERSATION ||--o{ MESSAGE : contains
+    USERS ||--o{ INTERVIEW_SESSION : starts
+    INTERVIEW_SESSION ||--o{ INTERVIEW_ANSWER : records
+
+    USERS {
+        bigint id PK
+        varchar email UK
+        varchar password_hash
+        varchar display_name
+        varchar role
+        timestamptz created_at
+    }
+
+    CONVERSATION {
+        bigint id PK
+        bigint user_id FK
+        varchar title
+        timestamptz created_at
+    }
+
+    MESSAGE {
+        bigint id PK
+        bigint conversation_id FK
+        varchar role
+        text content
+        timestamptz created_at
+    }
+
+    INTERVIEW_SESSION {
+        bigint id PK
+        bigint user_id FK
+        varchar topic
+        int current_question
+        boolean completed
+        double score
+        timestamptz created_at
+    }
+
+    INTERVIEW_ANSWER {
+        bigint id PK
+        bigint session_id FK
+        text question
+        text answer
+        double score
+        text feedback
+        timestamptz created_at
+    }
+```
+
+| Table | Purpose |
+|---|---|
+| `users` | Accounts, with a BCrypt password hash and a unique email |
+| `conversation` | One chat thread per user, with a title |
+| `message` | Individual messages in a conversation (`role` marks who sent it) |
+| `interview_session` | One interview run: topic, progress, completion flag and overall score |
+| `interview_answer` | Each question asked, the answer given, its score and the LLM feedback |
+
 ## Tech stack
 
 | Layer | Technology |
