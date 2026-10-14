@@ -40,6 +40,15 @@ public class ElevenLabsTextToSpeechProvider implements TextToSpeechProvider {
             throw new IllegalStateException("ElevenLabs is not configured: ELEVENLABS_VOICE_ID is missing");
         }
 
+        System.out.println(
+                "ElevenLabs config: "
+                        + "keyPresent=" + (key != null && !key.isBlank())
+                        + ", keyLength=" + (key == null ? 0 : key.length())
+                        + ", voicePresent=" + (voice != null && !voice.isBlank())
+                        + ", voiceLength=" + (voice == null ? 0 : voice.length())
+                        + ", model=" + model
+        );
+
         try {
             long started = System.currentTimeMillis();
 
