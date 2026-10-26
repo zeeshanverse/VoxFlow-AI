@@ -15,7 +15,7 @@ The application uses `spring.jpa.hibernate.ddl-auto=update` for local developmen
 Backend only:
 
 - AssemblyAI: `ASSEMBLYAI_API_KEY`
-- ElevenLabs: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`
+- Piper TTS: `PIPER_TTS_URL`, `PIPER_TTS_TOKEN`
 - Gemini: `GEMINI_API_KEY`, `GEMINI_MODEL`
 
 Never place these in `frontend/.env` or source code.

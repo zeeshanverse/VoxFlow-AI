@@ -19,7 +19,7 @@ SpeechToTextProvider
   └── AssemblyAI
 
 TextToSpeechProvider
-  └── ElevenLabs
+  └── Piper TTS
 
 LlmProvider
   └── Google Gemini API (generateContent)

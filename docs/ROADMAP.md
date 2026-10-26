@@ -14,7 +14,7 @@
 - [x] STT endpoint
 - [x] AssemblyAI adapter
 - [x] TTS endpoint
-- [x] ElevenLabs adapter
+- [x] Piper TTS adapter
 - [x] End-to-end voice loop
 
 ## Intelligence

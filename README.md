@@ -26,7 +26,7 @@ React (Vite)
    ▼
 Spring Boot REST API  ──►  AssemblyAI   (speech-to-text)
    │                  ──►  Google Gemini (LLM)
-   │                  ──►  ElevenLabs    (text-to-speech)
+   │                  ──►  Piper TTS    (text-to-speech)
    ▼
 PostgreSQL (Neon in production)
 ```
@@ -37,7 +37,7 @@ Request flow for one voice turn:
 2. The backend sends it to AssemblyAI and gets a transcript.
 3. `IntentRouter` decides between a built-in command and a general LLM query.
 4. The reply is saved to the conversation in PostgreSQL.
-5. ElevenLabs turns the reply into audio, and React plays it.
+5. Piper TTS turns the reply into audio, and React plays it.
 
 Backend layers:
 
@@ -48,7 +48,7 @@ Controllers  ->  Services  ->  Provider interfaces  ->  JPA repositories / exter
 | Provider interface | Implementation |
 |---|---|
 | `SpeechToTextProvider` | AssemblyAI |
-| `TextToSpeechProvider` | ElevenLabs |
+| `TextToSpeechProvider` | Piper TTS |
 | `LlmProvider` | Google Gemini (an OpenAI provider is also included) |
 
 ## Database schema
@@ -123,7 +123,7 @@ erDiagram
 | Backend | Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, Flyway |
 | Database | PostgreSQL (Neon in production) |
 | Auth | JWT (jjwt), BCrypt |
-| AI services | AssemblyAI, Google Gemini, ElevenLabs |
+| AI services | AssemblyAI, Google Gemini, Piper TTS |
 | Deployment | Vercel (frontend), Render with Docker (backend), Neon (database) |
 
 ## Project structure
@@ -137,7 +137,7 @@ VoxFlow-Assistant/
 │   │   ├── conversation/   conversations and messages
 │   │   ├── interview/      sessions, questions, evaluation
 │   │   ├── llm/            Gemini and OpenAI providers
-│   │   ├── voice/          AssemblyAI and ElevenLabs providers
+│   │   ├── voice/          AssemblyAI and Piper TTS providers
 │   │   ├── security/       JWT filter and security config
 │   │   ├── config/         datasource and web client config
 │   │   └── ...
@@ -155,7 +155,7 @@ VoxFlow-Assistant/
 - JDK 21+
 - Node.js 20+
 - PostgreSQL 15+
-- API keys for AssemblyAI, ElevenLabs and Google Gemini
+- API keys for AssemblyAI, Piper TTS and Google Gemini
 
 ### 1. Create the database
 

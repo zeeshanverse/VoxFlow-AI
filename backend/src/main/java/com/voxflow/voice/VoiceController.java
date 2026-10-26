@@ -91,7 +91,7 @@ public class VoiceController {
         }
 
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("audio/mpeg"))
+                .contentType(MediaType.valueOf("audio/wav"))
                 .body(tts.synthesize(request.text()));
     }
 

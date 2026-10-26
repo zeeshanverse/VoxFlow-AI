@@ -16,9 +16,9 @@ services:
         sync: false
       - key: ASSEMBLYAI_API_KEY
         sync: false
-      - key: ELEVENLABS_API_KEY
+      - key: PIPER_TTS_URL
         sync: false
-      - key: ELEVENLABS_VOICE_ID
+      - key: PIPER_TTS_TOKEN
         sync: false
       - key: GEMINI_API_KEY
         sync: false
@@ -27,4 +27,16 @@ services:
       - key: GEMINI_THINKING_LEVEL
         value: low
       - key: FRONTEND_ORIGIN
+        sync: false
+
+
+  - type: web
+    name: voxflow-piper
+    runtime: docker
+    rootDir: piper
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: PIPER_TTS_TOKEN
         sync: false
